@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Account {
+  id        String    @id @default(cuid())
+  username  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  todos     Todo[]
+  profiles  Profile[]
+}
+
 model User {
   id                  String    @id @default(cuid())
   username            String
@@ -18,49 +29,64 @@ model User {
   provider            String    @default("local") // 'local', 'google', 'github'
   providerId          String? // ID from the provider
   UserAddedAt         DateTime  @default(now())
-  contents            Content[]
-  avatar              Avatar[]
+  accounts            Account[]
 }
 
-model Avatar {
-  id        Int      @id @default(autoincrement())
-  publicId  String   @unique
-  url       String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String // Foreign key to User's Table
-}
-
-model Content {
-  id          String         @id @default(uuid())
-  type        ContentType
-  url         String?
+model Todo {
+  id          String          @id @default(uuid())
   title       String
   description String?
-  userId      String // to which user this content belogs to!!
-  user        User           @relation(fields: [userId], references: [id])
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  images      ContentImage[]
+  links       String?
+  priority    PriorityType?   @default(Low)
+  list        ListType?       @default(Personal)
+  visibility  VisibilityType? @default(Private)
+  date        String?
+  time        String?
+  tags        Json?
+  subTasks    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  accountId   String
+  account     Account         @relation(fields: [accountId], references: [id])
+  media       TodoMedia[]
 
-  @@index([userId])
+  @@index([accountId])
 }
 
-model ContentImage {
+model TodoMedia {
   id        Int      @id @default(autoincrement())
-  publicId  String   @unique
-  url       String
+  publicUrl String
   createdAt DateTime @default(now())
-  content   Content  @relation(fields: [contentId], references: [id])
-  contentId String
-  userId    String
+  updatedAt DateTime @updatedAt
+  todoId    String
+  todo      Todo     @relation(fields: [todoId], references: [id])
+
+  @@index([todoId])
 }
 
-enum ContentType {
-  LINK
-  YOUTUBE
-  TWEET
-  DOCUMENT
-  IMAGE // Cloudinary storage!
-  OTHER
+model Profile {
+  id        Int      @id @default(autoincrement())
+  publicUrl String // Stores Cloudinary's secure_url
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+}
+
+enum PriorityType {
+  High
+  Medium
+  Low
+}
+
+enum ListType {
+  Personal
+  Work
+}
+
+enum VisibilityType {
+  Public
+  Private
 }

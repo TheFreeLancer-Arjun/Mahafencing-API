@@ -1,124 +1,129 @@
+/**
+ * @file passport.ts
+ * @description Configures Passport Google and GitHub OAuth strategies with full TypeScript types,
+ *              including user serialization and deserialization. Handles creating new users if needed.
+ */
+
 import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as GitHubStrategy } from 'passport-github2';
-import prisma from '../db/prisma';
+import { Strategy as GoogleStrategy, Profile as GoogleProfile, VerifyCallback as GoogleVerifyCallback } from 'passport-google-oauth20';
+import { Strategy as GitHubStrategy, Profile as GitHubProfile } from 'passport-github2';
 import { generateHashedPassword } from './generateHash';
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from '../config';
+import {
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  GITHUB_CLIENT_ID,
+  GITHUB_CLIENT_SECRET,
+  BASE_URL,
+} from '../config';
+import prisma from '../db/prisma';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
-
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
-    throw new Error('Missing OAuth credentials in environment variables');
-}
-
-// Serialize & Deserialize user
-passport.serializeUser((user: Express.User, done) => {
-    done(null, (user as any).id);
+passport.serializeUser((user: Express.User, done: (err: any, id?: string) => void) => {
+  done(null, (user as any).id);
 });
 
-passport.deserializeUser(async (id: string, done) => {
-    try {
-        const user = await prisma.user.findUnique({ where: { id } });
-        done(null, user);
-    } catch (err) {
-        done(err);
-    }
+passport.deserializeUser(async (id: string, done: (err: any, user?: any) => void) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    done(null, user);
+  } catch (err) {
+    done(err);
+  }
 });
 
-// Google Strategy
-passport.use(
+if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+  passport.use(
     'google',
     new GoogleStrategy(
-        {
-            clientID: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-            callbackURL: `${BASE_URL}/auth/google/callback`,
-        },
-        async (_accessToken, _refreshToken, profile, done) => {
-            try {
-                const email = profile.emails?.[0]?.value;
-                if (!email) {
-                    done(new Error('No email found in Google profile'));
-                    return
-                }
+      {
+        clientID: GOOGLE_CLIENT_ID,
+        clientSecret: GOOGLE_CLIENT_SECRET,
+        callbackURL: `${BASE_URL}/auth/google/callback`,
+      },
+      async (
+        _accessToken: string,
+        _refreshToken: string,
+        profile: GoogleProfile,
+        done: GoogleVerifyCallback
+      ) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          if (!email) return done(new Error('No email found in Google profile'));
 
-                let user = await prisma.user.findUnique({
-                    where: { email },
-                });
+          let user = await prisma.user.findUnique({ where: { email } });
 
-                if (!user) {
-                    user = await prisma.user.create({
-                        data: {
-                            email,
-                            username: profile.displayName || `user-${Math.random().toString(36).substring(2, 9)}`,
-                            password: await generateHashedPassword(),
-                            isMailVerified: true,
-                            provider: 'google',
-                            providerId: profile.id,
-                        },
-                    });
-                }
+          if (!user) {
+            user = await prisma.user.create({
+              data: {
+                email,
+                username: profile.displayName || `user-${Math.random().toString(36).slice(2, 9)}`,
+                password: await generateHashedPassword(),
+                isMailVerified: true,
+                provider: 'google',
+                providerId: profile.id,
+              },
+            });
+          }
 
-                done(null, user);
-                return
-            } catch (err) {
-                done(err as Error);
-                return
-            }
+          done(null, user);
+        } catch (error) {
+          done(error as Error);
         }
+      }
     )
-);
+  );
+} else {
+  console.warn('Google OAuth credentials missing, skipping Google OAuth strategy.');
+}
 
-/* GitHub Strategy */
-
-passport.use(
+if (GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET) {
+  passport.use(
     'github',
     new GitHubStrategy(
-        {
-            clientID: process.env.GITHUB_CLIENT_ID!,
-            clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-            callbackURL: `${BASE_URL}/auth/github/callback`,
-            scope: ['user:email']
-        },
-        async (accessToken: string, refreshToken: string, profile: any, done: any) => {
-            try {
-                // GitHub may return multiple emails, we'll use the primary one
-                const primaryEmail = profile.emails?.find((email: any) => email.primary)?.value ||
-                    profile.emails?.[0]?.value;
+      {
+        clientID: GITHUB_CLIENT_ID,
+        clientSecret: GITHUB_CLIENT_SECRET,
+        callbackURL: `${BASE_URL}/auth/github/callback`,
+        scope: ['user:email'],
+      },
+      async (
+        _accessToken: string,
+        _refreshToken: string,
+        profile: GitHubProfile,
+        done: (error: any, user?: any) => void
+      ) => {
+        try {
+          // GitHubProfile.emails has type: Array<{ value: string; type?: string }>
+          // But 'primary' is not standard in typings, so cast to any to check or find by 'primary' property.
 
-                if (!primaryEmail) {
-                    done(new Error('No email found in GitHub profile'));
-                    return
-                }
+          const emails = profile.emails as Array<{ value: string; primary?: boolean }>;
 
-                // Check if user exists
-                const existingUser = await prisma.user.findUnique({
-                    where: { email: primaryEmail },
-                });
+          // Find primary email or fallback to first email
+          const primaryEmail = emails?.find(email => email.primary)?.value || emails?.[0]?.value;
 
-                if (existingUser) {
-                    done(null, existingUser);
-                    return
-                }
+          if (!primaryEmail) return done(new Error('No email found in GitHub profile'));
 
-                // Create new user if doesn't exist
-                const newUser = await prisma.user.create({
-                    data: {
-                        email: primaryEmail,
-                        username: profile.username || `user-${Math.random().toString(36).substring(2, 9)}`,
-                        password: await generateHashedPassword(),
-                        isMailVerified: true,
-                        provider: 'github',
-                        providerId: profile.id,
-                    },
-                });
+          let user = await prisma.user.findUnique({ where: { email: primaryEmail } });
 
-                done(null, newUser);
-                return
-            } catch (err) {
-                done(err as Error);
-                return
-            }
+          if (!user) {
+            user = await prisma.user.create({
+              data: {
+                email: primaryEmail,
+                username: profile.username || `user-${Math.random().toString(36).slice(2, 9)}`,
+                password: await generateHashedPassword(),
+                isMailVerified: true,
+                provider: 'github',
+                providerId: profile.id,
+              },
+            });
+          }
+
+          done(null, user);
+        } catch (error) {
+          done(error as Error);
         }
+      }
     )
-);
+  );
+} else {
+  console.warn('GitHub OAuth credentials missing, skipping GitHub OAuth strategy.');
+}
