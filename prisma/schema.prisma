@@ -7,48 +7,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Account {
-  id        String    @id @default(cuid())
-  username  String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  todos     Todo[]
-  profiles  Profile[]
+model User {
+  id                  String   @id @default(cuid())
+  username            String
+  email               String   @unique
+  password            String
+  isMailVerified      Boolean? @default(false)
+  otpForVerification  String?  @default("")
+  otpForResetPassword String?  @default("")
+  provider            String?  @default("local")
+  providerId          String?
+  UserAddedAt         DateTime @default(now())
+
+  // Relations
+  accounts        Account[]
+  activeAccountId String?
+  activeAccount   Account?  @relation("ActiveAccount", fields: [activeAccountId], references: [id])
 }
 
-model User {
-  id                  String    @id @default(cuid())
-  username            String
-  email               String    @unique
-  password            String
-  isMailVerified      Boolean   @default(false)
-  otpForVerification  String    @default("")
-  otpForResetPassword String    @default("")
-  provider            String    @default("local") // 'local', 'google', 'github'
-  providerId          String? // ID from the provider
-  UserAddedAt         DateTime  @default(now())
-  accounts            Account[]
+model Account {
+  id        String   @id @default(cuid())
+  username  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  activeUsers User[] @relation("ActiveAccount")
+
+  todos    Todo[]
+  profiles Profile[]
 }
 
 model Todo {
-  id          String          @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
   description String?
-  links       String?
-  priority    PriorityType?   @default(Low)
-  list        ListType?       @default(Personal)
-  visibility  VisibilityType? @default(Private)
+  links       Json?
+  priority    String?  @default("Low")
+  list        String?  @default("Personal")
+  visibility  String?  @default("Private")
   date        String?
   time        String?
   tags        Json?
   subTasks    Json?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  accountId   String
-  account     Account         @relation(fields: [accountId], references: [id])
-  media       TodoMedia[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  status    String?  @default("pending") // values: "pending", "done", "rejected"
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  media TodoMedia[]
 
   @@index([accountId])
 }
@@ -58,35 +69,21 @@ model TodoMedia {
   publicUrl String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  todoId    String
-  todo      Todo     @relation(fields: [todoId], references: [id])
+
+  todoId String
+  todo   Todo   @relation(fields: [todoId], references: [id], onDelete: Cascade)
 
   @@index([todoId])
 }
 
 model Profile {
   id        Int      @id @default(autoincrement())
-  publicUrl String // Stores Cloudinary's secure_url
+  publicUrl String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   accountId String
-  account   Account  @relation(fields: [accountId], references: [id])
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
-}
-
-enum PriorityType {
-  High
-  Medium
-  Low
-}
-
-enum ListType {
-  Personal
-  Work
-}
-
-enum VisibilityType {
-  Public
-  Private
 }

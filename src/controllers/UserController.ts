@@ -1,5 +1,4 @@
-// src/controllers/auth.controller.ts
-import { Request, Response } from "express";
+import { Request, Response  } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import prisma from "../db/prisma";
@@ -10,7 +9,7 @@ import {
 import { JWT_USER_SECRET } from "../config";
 
 // ✅ SIGNUP
-export const signup = async (req: Request, res: Response): Promise<any> => {
+export const signup = async (req: Request, res: Response) : Promise<any> => {
   const result = signupValidationSchema.safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({
@@ -33,12 +32,17 @@ export const signup = async (req: Request, res: Response): Promise<any> => {
       password: hashedPassword,
       username,
       accounts: {
-        create: { username }, // 👈 default account
+        create: { username },
       },
     },
-    include: {
-      accounts: true,
-    },
+    include: { accounts: true },
+  });
+
+  const defaultAccountId = user.accounts[0].id;
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { activeAccountId: defaultAccountId },
   });
 
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_USER_SECRET, {
@@ -60,40 +64,13 @@ export const signup = async (req: Request, res: Response): Promise<any> => {
         id: user.id,
         email: user.email,
         accounts: user.accounts,
+        activeAccountId: defaultAccountId,
       },
-      activeAccountId: user.accounts[0].id, // 👈 default login account
     });
 };
 
-// ✅ CREATE ACCOUNT
-export const createAccount = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
-  const { userId, username } = req.body;
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { accounts: true },
-  });
-
-  if (!user) return res.status(404).json({ message: "User not found" });
-
-  if (user.accounts.length >= 5) {
-    return res
-      .status(400)
-      .json({ message: "You can only create up to 5 accounts." });
-  }
-
-  const newAccount = await prisma.account.create({
-    data: { username, userId },
-  });
-
-  res.status(201).json({ message: "Account created", account: newAccount });
-};
-
 // ✅ SIGNIN
-export const signin = async (req: Request, res: Response): Promise<any> => {
+export const signin = async (req: Request, res: Response) : Promise<any> => {
   const result = signinValidationSchema.safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({
@@ -106,9 +83,7 @@ export const signin = async (req: Request, res: Response): Promise<any> => {
 
   const user = await prisma.user.findUnique({
     where: { email },
-    include: {
-      accounts: { include: { profiles: true } },
-    },
+    include: { accounts: true },
   });
 
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -130,17 +105,18 @@ export const signin = async (req: Request, res: Response): Promise<any> => {
     })
     .status(200)
     .json({
-      message: "User signed in",
+      message: "Signin successful",
       user: {
         id: user.id,
         email: user.email,
         accounts: user.accounts,
+        activeAccountId: user.activeAccountId,
       },
     });
 };
 
 // ✅ LOGOUT
-export const logout = async (req: Request, res: Response): Promise<any> => {
+export const logout = async (req: Request, res: Response) : Promise<any> => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: true,
@@ -150,10 +126,9 @@ export const logout = async (req: Request, res: Response): Promise<any> => {
   return res.status(200).json({ message: "User Logged Out Successfully!" });
 };
 
-// ✅ ME
-export const me = async (req: Request, res: Response): Promise<any> => {
+// ✅ GET CURRENT USER
+export const me = async (req: Request, res: Response) : Promise<any> => {
   const userId = (req as any).user?.id;
-  if (!userId) return res.status(401).json({ message: "ACCESS DENIED" });
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -166,16 +141,86 @@ export const me = async (req: Request, res: Response): Promise<any> => {
     user: {
       id: user.id,
       email: user.email,
-      accounts: user.accounts.map((acc) => ({
-        id: acc.id,
-        username: acc.username,
-      })),
+      accounts: user.accounts,
+      activeAccountId: user.activeAccountId,
     },
   });
 };
 
-// ✅ SESSION
-export const session = async (req: Request, res: Response): Promise<any> => {
+// ✅ CREATE ACCOUNT
+export const createAccount = async (req: Request, res: Response) : Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { username } = req.body;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { accounts: true },
+  });
+
+  if (!user) return res.status(404).json({ message: "User not found" });
+  if (user.accounts.length >= 5)
+    return res.status(400).json({ message: "Max 5 accounts allowed" });
+
+  const duplicate = await prisma.account.findFirst({
+    where: { userId, username },
+  });
+  if (duplicate)
+    return res.status(409).json({ message: "Account already exists" });
+
+  const newAccount = await prisma.account.create({
+    data: { username, userId },
+  });
+
+  return res.status(201).json({ message: "Account created", account: newAccount });
+};
+
+// ✅ DELETE ACCOUNT (with cascade)
+export const deleteAccount = async (req: Request, res: Response) : Promise<any> => {
+  const userId = (req as any).user?.id;
+  const accountId = req.params.id;
+
+  const account = await prisma.account.findUnique({ where: { id: accountId } });
+
+  if (!account || account.userId !== userId) {
+    return res.status(403).json({ message: "Unauthorized or not found" });
+  }
+
+  // ❗️Cascade delete: Prisma handles `Todo`, `TodoMedia`, `Profile` via schema
+  await prisma.account.delete({ where: { id: accountId } });
+
+  // Reset activeAccountId if needed
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (user?.activeAccountId === accountId) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { activeAccountId: null },
+    });
+  }
+
+  return res.status(200).json({ message: "Account and related data deleted" });
+};
+
+// ✅ SWITCH ACCOUNT
+export const switchAccount = async (req: Request, res: Response) : Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { accountId } = req.body;
+
+  const account = await prisma.account.findUnique({ where: { id: accountId } });
+
+  if (!account || account.userId !== userId) {
+    return res.status(403).json({ message: "Invalid account" });
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { activeAccountId: accountId },
+  });
+
+  return res.status(200).json({ message: "Switched active account", accountId });
+};
+
+// ✅ SESSION CHECK
+export const session = async (req: Request, res: Response) : Promise<any> => {
   const token =
     req.cookies?.token ||
     req.headers.authorization?.split(" ")[1] ||
@@ -210,15 +255,13 @@ export const session = async (req: Request, res: Response): Promise<any> => {
         user: {
           id: user.id,
           email: user.email,
-          accounts: user.accounts.map((a) => ({
-            id: a.id,
-            username: a.username,
-          })),
+          accounts: user.accounts,
+          activeAccountId: user.activeAccountId,
         },
       },
     });
   } catch (error) {
-    console.error("Session verification error:", error);
+    console.error("Session error:", error);
     return res
       .status(200)
       .json({ message: { isAuthenticated: false, user: null } });
