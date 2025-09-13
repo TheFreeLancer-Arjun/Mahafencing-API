@@ -3,7 +3,7 @@ services:
     name: node-crud-app
     env: node
     plan: free   # or starter, standard depending on your needs
-    buildCommand: "npm install"
+    buildCommand: "npm install --legacy-peer-deps"
     startCommand: "cd src && node index.js"
     envVars:
       - key: NODE_ENV
