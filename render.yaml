@@ -1,27 +1,12 @@
 services:
   - type: web
-    name: node-crud-app-web
+    name: node-crud-app
     env: node
-    plan: starter # change to free, standard-1, etc. as needed
-    region: oregon # change to "oregon" or "iad"
-    repo: https://github.com/TheFreeLancer-Arjun/Mahafencing-API
-    branch: main
+    plan: free   # or starter, standard depending on your needs
     buildCommand: "npm install"
-    startCommand: "npm run start"
+    startCommand: "cd src && node index.js"
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: node-crud-app-db
       - key: PORT
-        value: "10000"
-    autoDeploy: true
-    healthCheckPath: /api/health
-    instanceType: starter
-
-databases:
-  - name: node-crud-app-db
-    type: postgres
-    plan: starter
-    region: oregon
+        value: 10000
