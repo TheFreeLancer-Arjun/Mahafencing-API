@@ -7,83 +7,227 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                  String   @id @default(cuid())
-  username            String
-  email               String   @unique
-  password            String
-  isMailVerified      Boolean? @default(false)
-  otpForVerification  String?  @default("")
-  otpForResetPassword String?  @default("")
-  provider            String?  @default("local")
-  providerId          String?
-  UserAddedAt         DateTime @default(now())
-
-  // Relations
-  accounts        Account[]
-  activeAccountId String?
-  activeAccount   Account?  @relation("ActiveAccount", fields: [activeAccountId], references: [id])
-}
-
-model Account {
-  id        String   @id @default(cuid())
-  username  String
+model BannerImage {
+  id        Int      @id @default(autoincrement())
+  url       String
+  title     String
+  publicId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  activeUsers User[] @relation("ActiveAccount")
-
-  todos    Todo[]
-  profiles Profile[]
 }
 
-model Todo {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  links       Json?
-  priority    String?  @default("Low")
-  list        String?  @default("Personal")
-  visibility  String?  @default("Private")
-  date        String?
-  time        String?
-  tags        Json?
-  subTasks    Json?
+model BlueCard {
+  id        Int      @id @default(autoincrement())
+  title1    String
+  title2    String
+  title3    String
+  title4    String
+  title5    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Mahafencing {
+  id          Int      @id @default(autoincrement())
+  description String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  status    String?  @default("pending") // values: "pending", "done", "rejected"
-  accountId String
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  media TodoMedia[]
-
-  @@index([accountId])
 }
 
-model TodoMedia {
-  id        Int      @id @default(autoincrement())
-  publicUrl String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  todoId String
-  todo   Todo   @relation(fields: [todoId], references: [id], onDelete: Cascade)
-
-  @@index([todoId])
+model News {
+  id          Int      @id @default(autoincrement())
+  url         String
+  pdfUrl      String
+  title       String
+  description String
+  publicId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-model Profile {
+model NumberStats {
+  id                      Int      @id @default(autoincrement())
+  registeredPlayers       String
+  shivChhatrapatiAwardees String
+  nationalMedalists       String
+  internationalMedalists  String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model OurInspiration {
+  id          Int      @id @default(autoincrement())
+  url         String
+  name        String
+  designation String
+  description String
+  publicId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model OfficeBearerStatic {
+  id          Int      @id @default(autoincrement())
+  url         String
+  name        String
+  designation String
+  description String
+  publicId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ShowGallery {
   id        Int      @id @default(autoincrement())
-  publicUrl String
+  url       String
+  title     String
+  publicId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
 
-  accountId String
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+model OurPartner {
+  id        Int      @id @default(autoincrement())
+  url       String
+  title     String
+  publicId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
-  @@index([accountId])
+model OurGallery {
+  id        Int      @id @default(autoincrement())
+  url       String
+  title     String
+  year      String
+  publicId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MessageFromUser {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String
+  number      String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model GetInTouch {
+  id          Int      @id @default(autoincrement())
+  ourLocation String
+  phone       String
+  email       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ShivChhatrapatiAwardee {
+  id        Int                 @id @default(autoincrement())
+  url       String
+  name      String
+  location  String
+  priority  AwardeeTypeExtended
+  publicId  String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+enum AwardeeTypeExtended {
+  Players
+  Coaches
+  Associates
+  RajmataJijau
+}
+
+model DistSportAwardee {
+  id        Int         @id @default(autoincrement())
+  url       String
+  name      String
+  location  String
+  priority  AwardeeType
+  publicId  String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+enum AwardeeType {
+  Players
+  Coaches
+  Associates
+}
+
+model NationalMedalist {
+  id        Int      @id @default(autoincrement())
+  title     String
+  pdfUrl    String
+  year      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InternationalMedalist {
+  id        Int      @id @default(autoincrement())
+  title     String
+  pdfUrl    String
+  year      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Research {
+  id         Int      @id @default(autoincrement())
+  name       String
+  degree     String
+  university String
+  year       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model OfficeBearer {
+  id          Int              @id @default(autoincrement())
+  url         String
+  name        String
+  designation String
+  priority    OfficeBearerType
+  publicId    String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+enum OfficeBearerType {
+  High
+  Medium
+  Low
+}
+
+model NISCoach {
+  id        Int      @id @default(autoincrement())
+  name      String
+  location  String
+  course    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AnnualReport {
+  id        Int      @id @default(autoincrement())
+  title     String
+  pdfUrl    String
+  year      String
+  publicId  String   // ← Add this field to track file in Cloudinary
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Admin {
+  id        String   @id @default(cuid())
+  username  String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

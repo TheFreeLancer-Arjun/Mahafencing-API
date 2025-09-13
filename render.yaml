@@ -1,0 +1,70 @@
+# Render manifest for a Node.js CRUD application
+# Replace placeholders (REPO_NAME, BRANCH, SECRET_NAMES, etc.) with your actual values.
+
+services:
+  - type: web_service
+    name: node-crud-app-web
+    env: node
+    plan: starter # change to free, standard-1, etc. as needed
+    region: oregon # change to "oregon" or "iad" depending on preference
+    repo: https://github.com/TheFreeLancer-Arjun/Mahafencing-API
+    branch: main
+    buildCommand: "npm ci && npm run build || true"
+    startCommand: "npm run start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase: node-crud-app-db
+      - key: PORT
+        value: "10000"
+    autoDeploy: true
+    healthCheckPath: /api/health
+    instanceType: "starter-1x"
+    disk: 10
+
+databases:
+  - name: node-crud-app-db
+    type: postgres
+    plan: starter # change to standard-0, standard-1, etc.
+    region: oregon
+    disk: 10
+
+# Optional: a background worker for processing heavy jobs or queued tasks
+# Uncomment and adjust if you use a job queue (Bull, Queue, etc.)
+#
+#services:
+#  - type: worker
+#    name: node-crud-app-worker
+#    env: node
+#    repo: https://github.com/<YOUR_ORG_OR_USER>/<REPO_NAME>
+#    branch: main
+#    buildCommand: "npm ci"
+#    startCommand: "npm run worker"
+#    envVars:
+#      - key: DATABASE_URL
+#        fromDatabase: node-crud-app-db
+#    autoDeploy: true
+#    instanceType: "starter-1x"
+
+# Notes:
+# - Replace the repo URL and branch with your project's repository and branch.
+# - If your app requires environment secrets (API keys, JWT_SECRET, S3 keys), create them
+#   in the Render dashboard and reference them using `envVars` with `fromSecret` keys or
+#   set them directly in the Render dashboard after deployment.
+# - If your project uses yarn, replace build/start commands accordingly, e.g. "yarn install" and "yarn start".
+# - The DATABASE_URL `fromDatabase` field will automatically inject the DB connection string
+#   Render provides for the managed Postgres instance named `node-crud-app-db`.
+# - Keep healthCheckPath pointing to a lightweight endpoint (e.g. /api/health) that returns 200.
+# - Adjust instanceType, plan, region, and disk to match your expected traffic and budget.
+# - To add a static frontend site, add a `static_site` block pointing to the frontend directory.
+
+# Example static site (uncomment and modify if you have a frontend):
+# static_sites:
+#   - name: node-crud-app-frontend
+#     repo: https://github.com/<YOUR_ORG_OR_USER>/<REPO_NAME>
+#     branch: main
+#     buildCommand: "npm ci && npm run build --prefix frontend"
+#     publishPath: "frontend/build"
+#     envVars: []
+#     autoDeploy: true

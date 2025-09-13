@@ -1,47 +1,42 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Node.js backend CRUD app with Express, Prisma, Passport, and Cloudinary",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node ./dist/index.js",
-    "build": "tsc -b",
-    "dev": "tsc -b && node ./dist/index.js",
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
     "postinstall": "prisma generate"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
-    "@types/cookie-parser": "^1.4.8",
-    "@types/cors": "^2.8.17",
-    "@types/dotenv": "^8.2.3",
-    "@types/express": "^5.0.1",
-    "@types/express-session": "^1.18.1",
-    "@types/jsonwebtoken": "^9.0.9",
-    "@types/multer": "^1.4.12",
-    "@types/node": "^22.14.1",
-    "@types/passport": "^1.0.17",
-    "@types/passport-github2": "^1.2.9",
-    "@types/passport-google-oauth20": "^2.0.16",
-    "typescript": "^5.8.3"
-  },
+  "keywords": [
+    "node",
+    "express",
+    "crud",
+    "prisma",
+    "backend",
+    "api"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
   "dependencies": {
     "@prisma/client": "^6.6.0",
     "bcrypt": "^5.1.1",
-    "cloudinary": "^2.6.0",
+    "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.2",
+    "multer-storage-cloudinary": "^4.0.0",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "prisma": "^6.6.0",
     "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
